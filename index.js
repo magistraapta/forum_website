@@ -42,18 +42,18 @@ app.post('/post', async (req, res) => {
   const { title, content, userEmail } = req.body;
   try {
     const user = await prisma.user.findUnique({
-        where: {
-            email: userEmail
-        }
-    })
+      where: {
+        email: userEmail,
+      },
+    });
     const result = await prisma.post.create({
       data: {
         title,
         content,
-        author: {connect: {email: user.email}} ,
+        author: { connect: { email: user.email } },
       },
     });
-    res.status(200).json({message: 'success create post', result});
+    res.status(200).json({ message: 'success create post', result });
   } catch (error) {
     console.log(error);
   }
@@ -76,5 +76,15 @@ app.post('/login', async (req, res) => {
     res.json('success login');
   } catch (error) {
     res.json(error);
+  }
+});
+
+app.get('/feed', async (req, res) => {
+  try {
+    const result = await prisma.post.findMany();
+    res.status(200).json({ message: 'succes getting feed', result });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'error getting feed' });
   }
 });
