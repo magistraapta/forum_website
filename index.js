@@ -11,7 +11,9 @@ app.listen(port, () => {
 });
 
 app.get('/users', async (req, res) => {
-  const findUser = await prisma.user.findMany();
+  const findUser = await prisma.user.findMany({
+    include: {posts: {orderBy: {id:'asc'}}}
+  });
   res.json(findUser);
 });
 
