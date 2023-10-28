@@ -1,18 +1,41 @@
 const { PrismaClient } = require('@prisma/client');
 const express = require('express');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const prisma = new PrismaClient();
 const port = 8888;
+
 app.use(express.json());
 
 app.listen(port, () => {
   console.log(` app listening on port ${port}`);
 });
 
-app.get('/users', async (req, res) => {
+const accessValidation = (req,res,next) => {
+  const {authorization} = req.headers
+
+  if (!authorization) {
+    return res.status(401).json({message: 'token diperlukan'})
+  }
+
+  const token = authorization.split(' ')[1];
+  const secret = process.env.JWT_SECRET
+
+  try {
+    const jwtDecode = jwt.verify(token,secret)
+
+    req.userData = jwtDecode
+  } catch (error) {
+    return res.status(401).json({message: "Unauthorized"})
+  }
+  next()
+}
+
+app.get('/users', accessValidation, async (req, res) => {
   const findUser = await prisma.user.findMany({
-    include: {posts: {orderBy: {id:'asc'}}}
+    include: { posts: { orderBy: { id: 'asc' } } },
   });
   res.json(findUser);
 });
@@ -40,7 +63,7 @@ app.post('/sign-up', async (req, res) => {
   }
 });
 
-app.get('/post/:id', async (req, res) => {
+app.get('/post/:id', accessValidation,async (req, res) => {
   const { id } = req.params;
   try {
     const result = await prisma.post.findUnique({
@@ -48,7 +71,7 @@ app.get('/post/:id', async (req, res) => {
         id: Number(id),
       },
       include: {
-        comments: {orderBy:{id: 'asc'}}
+        comments: { orderBy: { id: 'asc' } },
       },
     });
     res.status(200).json({
@@ -61,7 +84,7 @@ app.get('/post/:id', async (req, res) => {
   }
 });
 
-app.post('/post', async (req, res) => {
+app.post('/post', accessValidation,async (req, res) => {
   const { title, content, userEmail } = req.body;
   try {
     const user = await prisma.user.findUnique({
@@ -83,20 +106,42 @@ app.post('/post', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-  const { name, password } = req.body;
+  const { email, password } = req.body;
   try {
-    const user = await prisma.user.findFirst({
+    const user = await prisma.user.findUnique({
       where: {
-        name: name,
-        password: password,
+        email: email,
       },
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'invalid name or password!' });
+      return res.status(401).json({ error: 'invalid email or password!' });
     }
 
-    res.json('success login');
+    const isPasswordValid = bcrypt.compare(password, user.password);
+
+    if (isPasswordValid) {
+      const payload = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      } 
+
+      const secret = process.env.JWT_SECRET
+      const expireIn = 60 *60 *1
+      const token = jwt.sign(payload, secret, {expiresIn: expireIn} )
+      return res.json({
+        data: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          token: token
+        },
+      });
+    } else {
+      res.status(403).json({ message: 'wrong password' });
+    }
+
   } catch (error) {
     res.json(error);
   }
@@ -112,7 +157,7 @@ app.get('/feed', async (req, res) => {
   }
 });
 
-app.post('/post/:id/comment', async (req, res) => {
+app.post('/post/:id/comment', accessValidation,async (req, res) => {
   const { id } = req.params;
   const { comment, username } = req.body;
   try {
@@ -139,5 +184,4 @@ app.post('/post/:id/comment', async (req, res) => {
     console.log(error);
   }
 });
-
 
