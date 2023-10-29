@@ -63,7 +63,7 @@ app.post('/sign-up', async (req, res) => {
   }
 });
 
-app.get('/post/:id', accessValidation,async (req, res) => {
+app.get('/post/:id',async (req, res) => {
   const { id } = req.params;
   try {
     const result = await prisma.post.findUnique({
@@ -72,6 +72,11 @@ app.get('/post/:id', accessValidation,async (req, res) => {
       },
       include: {
         comments: { orderBy: { id: 'asc' } },
+        author: {
+          select: {
+            name: true
+          }
+        }
       },
     });
     res.status(200).json({
@@ -151,7 +156,11 @@ app.get('/feed', async (req, res) => {
   try {
     const result = await prisma.post.findMany({
       include:{
-        author: true
+        author: {
+          select: {
+            name: true
+          }
+        }
       }
     });
     res.status(200).json({ message: 'succes getting feed', result });
