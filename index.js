@@ -149,7 +149,11 @@ app.post('/login', async (req, res) => {
 
 app.get('/feed', async (req, res) => {
   try {
-    const result = await prisma.post.findMany();
+    const result = await prisma.post.findMany({
+      include:{
+        author: true
+      }
+    });
     res.status(200).json({ message: 'succes getting feed', result });
   } catch (error) {
     console.log(error);
