@@ -40,10 +40,19 @@ app.get('/users', accessValidation, async (req, res) => {
   res.json(findUser);
 });
 
-app.post('/sign-up', async (req, res) => {
+app.post('/signup', async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
+    const findUser = await prisma.user.findUnique({
+      where: {
+        email: email
+      }
+    })
+
+    if (findUser) {
+      res.status(403).json({message: 'email already been use'})
+    }
     const createUser = await prisma.user.create({
       data: {
         name,
@@ -54,11 +63,7 @@ app.post('/sign-up', async (req, res) => {
 
     res.status(200).json({ message: 'success', user: createUser });
   } catch (error) {
-    if ((error.code = 'P2002' && error.meta.target.includes('email'))) {
-      res.status(400).json('email already exist');
-    } else {
-      res.status(500).json('create user failed');
-    }
+    
     console.log(error);
   }
 });
@@ -71,7 +76,13 @@ app.get('/post/:id',async (req, res) => {
         id: Number(id),
       },
       include: {
-        comments: { orderBy: { id: 'asc' } },
+        comments: { orderBy: { id: 'asc' }, include: {
+          author: {
+            select: {
+              name: true
+            }
+          }
+        } },
         author: {
           select: {
             name: true
@@ -159,8 +170,9 @@ app.get('/feed', async (req, res) => {
         author: {
           select: {
             name: true
-          }
-        }
+          },
+        },
+        comments: true
       }
     });
     res.status(200).json({ message: 'succes getting feed', result });
@@ -172,23 +184,33 @@ app.get('/feed', async (req, res) => {
 
 app.post('/post/:id/comment', accessValidation,async (req, res) => {
   const { id } = req.params;
-  const { comment, username } = req.body;
+  const { comment, userEmail} = req.body;
   try {
     const findPost = await prisma.post.findUnique({
       where: {
         id: parseInt(id),
       },
     });
+    const user = await prisma.user.findUnique({
+      where: {
+        email: userEmail,
+        
+      },
+    });
 
     if (!findPost) {
       res.status(404).json({ message: 'post no found' });
+    }
+    if (!user) {
+      res.status(404).json({ message: 'user no found' });
     }
 
     const result = await prisma.comment.create({
       data: {
         comment: comment,
         post: { connect: { id: findPost.id } },
-        user: username,
+        author: {connect: {email: user.email}}
+
       },
     });
     res.status(200).json({ message: 'success', response: result });
