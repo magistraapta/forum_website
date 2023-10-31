@@ -1,5 +1,6 @@
 const {prisma} = require('../utils/db');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 async function signup(req, res) {
   const { name, email, password } = req.body;
 
@@ -28,7 +29,7 @@ async function signup(req, res) {
 }
 
 async function login(req,res){
-    const { email, password } = req.body;
+  const { email, password } = req.body;
   try {
     const user = await prisma.user.findUnique({
       where: {
