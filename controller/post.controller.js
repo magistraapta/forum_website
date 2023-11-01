@@ -68,7 +68,7 @@ async function showAllPosts(req, res) {
         comments: true,
       },
     });
-    res.status(200).json({ message: 'succes getting feed', result });
+    res.status(200).json(result);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: 'error getting feed' });
