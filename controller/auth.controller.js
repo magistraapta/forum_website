@@ -14,10 +14,12 @@ async function signup(req, res) {
     if (findUser) {
       res.status(403).json({ message: 'email already been use' });
     }
+
+    const hashPassword = await bcrypt.hash(password, 10)
     const createUser = await prisma.user.create({
       data: {
         name,
-        password,
+        password: hashPassword,
         email,
       },
     });
@@ -41,7 +43,7 @@ async function login(req,res){
       return res.status(401).json({ error: 'invalid email or password!' });
     }
 
-    const isPasswordValid = bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (isPasswordValid) {
       const payload = {
